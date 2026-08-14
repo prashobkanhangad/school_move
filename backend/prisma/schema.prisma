@@ -1,0 +1,402 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  DRIVER
+  PARENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BusStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum RouteStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StopType {
+  PICKUP
+  DROP
+  BOTH
+}
+
+enum TripStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  TRIP_STARTED
+  TRIP_ENDED
+  PICKUP_APPROACHING
+  PICKUP_COMPLETED
+  DROP_APPROACHING
+  DROP_COMPLETED
+  EMERGENCY
+  GENERAL
+}
+
+enum NotificationChannel {
+  PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum EmergencyStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model School {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  code      String   @unique
+  address   String
+  city      String
+  state     String
+  country   String   @default("IN")
+  phone     String?
+  email     String?
+  logoUrl   String?
+  timezone  String   @default("Asia/Kolkata")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  buses         Bus[]
+  routes        Route[]
+  students      Student[]
+  trips         Trip[]
+  notifications Notification[]
+
+  @@index([isActive])
+}
+
+model User {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String?    @db.ObjectId
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  avatarUrl    String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  school                  School?          @relation(fields: [schoolId], references: [id])
+  driverProfile           DriverProfile?
+  parentProfile           ParentProfile?
+  refreshTokens           RefreshToken[]
+  deviceTokens            DeviceToken[]
+  notifications           Notification[]
+  acknowledgedEmergencies EmergencyAlert[] @relation("AcknowledgedBy")
+
+  @@index([schoolId, role])
+  @@index([schoolId, status])
+}
+
+model RefreshToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  tokenHash String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DeviceToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  fcmToken  String   @unique
+  platform  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DriverProfile {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @unique @db.ObjectId
+  licenseNumber String
+  licenseExpiry DateTime?
+  isAvailable   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bus   Bus?
+  trips Trip[]
+}
+
+model ParentProfile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students Student[]
+}
+
+model Bus {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String    @db.ObjectId
+  driverId    String?   @unique @db.ObjectId
+  plateNumber String
+  model       String?
+  capacity    Int
+  status      BusStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  school School         @relation(fields: [schoolId], references: [id])
+  driver DriverProfile? @relation(fields: [driverId], references: [id])
+  routes Route[]
+  trips  Trip[]
+
+  @@unique([schoolId, plateNumber])
+  @@index([schoolId, status])
+}
+
+model Route {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String      @db.ObjectId
+  busId       String?     @db.ObjectId
+  name        String
+  description String?
+  status      RouteStatus @default(ACTIVE)
+  startTime   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  school      School                   @relation(fields: [schoolId], references: [id])
+  bus         Bus?                     @relation(fields: [busId], references: [id])
+  stops       RouteStop[]
+  assignments StudentRouteAssignment[]
+  trips       Trip[]
+
+  @@index([schoolId, status])
+}
+
+model RouteStop {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  routeId   String   @db.ObjectId
+  name      String
+  address   String?
+  latitude  Float
+  longitude Float
+  stopOrder Int
+  stopType  StopType @default(BOTH)
+  radiusM   Int      @default(100)
+  createdAt DateTime @default(now())
+
+  route             Route                    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  pickupAssignments StudentRouteAssignment[] @relation("PickupStop")
+  dropAssignments   StudentRouteAssignment[] @relation("DropStop")
+
+  @@index([routeId, stopOrder])
+}
+
+model Student {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  parentId  String   @db.ObjectId
+  firstName String
+  lastName  String
+  grade     String?
+  section   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School                   @relation(fields: [schoolId], references: [id])
+  parent      ParentProfile            @relation(fields: [parentId], references: [id])
+  assignments StudentRouteAssignment[]
+
+  @@index([schoolId, isActive])
+  @@index([parentId])
+}
+
+model StudentRouteAssignment {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  studentId     String           @db.ObjectId
+  routeId       String           @db.ObjectId
+  pickupStopId  String           @db.ObjectId
+  dropStopId    String           @db.ObjectId
+  status        AssignmentStatus @default(ACTIVE)
+  effectiveFrom DateTime         @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  student    Student   @relation(fields: [studentId], references: [id])
+  route      Route     @relation(fields: [routeId], references: [id])
+  pickupStop RouteStop @relation("PickupStop", fields: [pickupStopId], references: [id])
+  dropStop   RouteStop @relation("DropStop", fields: [dropStopId], references: [id])
+
+  @@index([routeId, status])
+  @@index([studentId, status])
+}
+
+model Trip {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String     @db.ObjectId
+  routeId   String     @db.ObjectId
+  busId     String     @db.ObjectId
+  driverId  String     @db.ObjectId
+  status    TripStatus @default(SCHEDULED)
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  currentLat      Float?
+  currentLng      Float?
+  currentHeading  Float?
+  currentSpeed    Float?
+  currentAccuracy Float?
+  lastLocationAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school          School           @relation(fields: [schoolId], references: [id])
+  route           Route            @relation(fields: [routeId], references: [id])
+  bus             Bus              @relation(fields: [busId], references: [id])
+  driver          DriverProfile    @relation(fields: [driverId], references: [id])
+  locationLogs    LocationLog[]
+  emergencyAlerts EmergencyAlert[]
+  stopEvents      TripStopEvent[]
+
+  @@index([schoolId, status])
+  @@index([routeId, status])
+  @@index([driverId, status])
+}
+
+model LocationLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  tripId     String   @db.ObjectId
+  latitude   Float
+  longitude  Float
+  heading    Float?
+  speed      Float?
+  accuracy   Float?
+  recordedAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, recordedAt])
+}
+
+model TripStopEvent {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  tripId     String   @db.ObjectId
+  stopId     String   @db.ObjectId
+  eventType  String
+  latitude   Float
+  longitude  Float
+  occurredAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId, occurredAt])
+}
+
+model EmergencyAlert {
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  tripId           String          @db.ObjectId
+  status           EmergencyStatus @default(ACTIVE)
+  message          String?
+  latitude         Float
+  longitude        Float
+  acknowledgedById String?         @db.ObjectId
+  acknowledgedAt   DateTime?
+  resolvedAt       DateTime?
+  createdAt        DateTime        @default(now())
+
+  trip           Trip  @relation(fields: [tripId], references: [id])
+  acknowledgedBy User? @relation("AcknowledgedBy", fields: [acknowledgedById], references: [id])
+
+  @@index([tripId, status])
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id        String              @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String              @db.ObjectId
+  userId    String              @db.ObjectId
+  type      NotificationType
+  channel   NotificationChannel @default(PUSH)
+  status    NotificationStatus  @default(PENDING)
+  title     String
+  body      String
+  data      Json?
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@index([schoolId, createdAt])
+  @@index([type, createdAt])
+}
+
+model NotificationTemplate {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  name      String
+  title     String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, isActive])
+}

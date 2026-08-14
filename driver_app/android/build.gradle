@@ -1,0 +1,40 @@
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// Legacy Flutter plugins (e.g. geolocator_android 4.x) read flutter.* before the
+// Flutter Gradle plugin is applied to their subproject.
+gradle.beforeProject { project ->
+    if (project.name != "app") {
+        project.ext.flutter = [
+            compileSdkVersion: 36,
+            minSdkVersion: 24,
+            targetSdkVersion: 36,
+            versionCode: 1,
+            versionName: "1.0.0",
+        ]
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+subprojects { project ->
+    project.plugins.withId("com.android.library") {
+        project.android {
+            compileSdk = 36
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Push test database schema
+        working-directory: backend
+        run: npx prisma db push
+        env:
+          DATABASE_URL: mongodb://localhost:27017/school_bus_test
+
+      - name: Typecheck
+        working-directory: backend
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: backend
+        run: npm run test:unit
+
+      - name: Integration tests
+        working-directory: backend
+        run: npm run test:integration
+        env:
+          RUN_INTEGRATION_TESTS: 'true'
+          DATABASE_URL: mongodb://localhost:27017/school_bus_test
+
+  admin-web:
+    name: Admin Web Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: admin-web
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: admin-web
+        run: npm run lint
+
+      - name: Tests
+        working-directory: admin-web
+        run: npm test
+
+  flutter-apps:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Driver app tests
+        working-directory: driver_app
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Parent app tests
+        working-directory: parent_app
+        run: |
+          flutter pub get
+          flutter test

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="schoolmove_navy">#001E4E</color>
+    <color name="schoolmove_orange">#FCA200</color>
+    <color name="schoolmove_black">#000000</color>
+    <color name="schoolmove_white">#FFFFFF</color>
+	<color name="ic_launcher_background">#FFFFFF</color>
+</resources>

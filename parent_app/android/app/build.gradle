@@ -1,0 +1,83 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def keyProperties = new Properties()
+def keyPropertiesFile = rootProject.file('key.properties')
+if (keyPropertiesFile.exists()) {
+    keyProperties.load(new FileInputStream(keyPropertiesFile))
+}
+
+def mapsApiKey = keyProperties.getProperty('GOOGLE_MAPS_API_KEY', '')
+if (mapsApiKey.isEmpty()) {
+    def localProps = new Properties()
+    def localFile = rootProject.file('local.properties')
+    if (localFile.exists()) {
+        localProps.load(new FileInputStream(localFile))
+        mapsApiKey = localProps.getProperty('GOOGLE_MAPS_API_KEY', '')
+    }
+}
+
+if (mapsApiKey.isEmpty()) {
+    throw new GradleException(
+        'Missing GOOGLE_MAPS_API_KEY. Copy android/key.properties.example to android/key.properties and set your Google Maps API key.'
+    )
+}
+
+android {
+    namespace = "com.schoolbus.parent_app"
+    compileSdk = 36
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+    }
+
+    defaultConfig {
+        applicationId = "com.schoolmove.parent"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+        manifestPlaceholders += [
+            GOOGLE_MAPS_API_KEY: mapsApiKey,
+        ]
+    }
+
+    signingConfigs {
+        release {
+            if (keyPropertiesFile.exists()
+                    && keyProperties['storeFile']
+                    && rootProject.file(keyProperties['storeFile']).exists()) {
+                keyAlias keyProperties['keyAlias']
+                keyPassword keyProperties['keyPassword']
+                storeFile rootProject.file(keyProperties['storeFile'])
+                storePassword keyProperties['storePassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.release.storeFile != null
+                    ? signingConfigs.release
+                    : signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            ndk {
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
+            }
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
