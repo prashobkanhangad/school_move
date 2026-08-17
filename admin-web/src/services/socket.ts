@@ -18,7 +18,7 @@ export function getSocket(): Socket | null {
 export function connectSocket(): Socket {
   if (socket?.connected) return socket;
 
-  const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
+  const url = import.meta.env.VITE_SOCKET_URL || 'https://schoolmovebackend.techweo.com';
 
   if (socket) {
     socket.auth = authPayload();

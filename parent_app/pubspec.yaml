@@ -1,7 +1,7 @@
 name: parent_app
 description: SchoolMove Parent — track your child’s school bus.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.5.3

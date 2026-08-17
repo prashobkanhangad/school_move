@@ -36,8 +36,8 @@ When creating the Play app, choose **Play App Signing**. Upload the AAB signed w
 Release builds **refuse** localhost. Use HTTPS:
 
 ```bash
-export API_BASE_URL=https://YOUR-API-HOST/api/v1
-export SOCKET_URL=https://YOUR-API-HOST
+export API_BASE_URL=https://schoolmovebackend.techweo.com/api/v1
+export SOCKET_URL=https://schoolmovebackend.techweo.com
 # Parent maps (also in parent_app/android/key.properties)
 export GOOGLE_MAPS_API_KEY=your_android_maps_key
 

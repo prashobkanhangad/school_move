@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 # Build Play Store Android App Bundles for parent + driver.
 # Usage:
-#   export API_BASE_URL=https://api.example.com/api/v1
-#   export SOCKET_URL=https://api.example.com
 #   ./scripts/build-play-aabs.sh
+# Optional overrides:
+#   export API_BASE_URL=https://schoolmovebackend.techweo.com/api/v1
+#   export SOCKET_URL=https://schoolmovebackend.techweo.com
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-if [[ -z "${API_BASE_URL:-}" || -z "${SOCKET_URL:-}" ]]; then
-  echo "Set production URLs first:"
-  echo "  export API_BASE_URL=https://your-api.example.com/api/v1"
-  echo "  export SOCKET_URL=https://your-api.example.com"
-  exit 1
-fi
+API_BASE_URL="${API_BASE_URL:-https://schoolmovebackend.techweo.com/api/v1}"
+SOCKET_URL="${SOCKET_URL:-https://schoolmovebackend.techweo.com}"
+echo "API_BASE_URL=$API_BASE_URL"
+echo "SOCKET_URL=$SOCKET_URL"
 
 if [[ "$API_BASE_URL" == http://* || "$SOCKET_URL" == http://* ]]; then
   echo "Play release builds must use HTTPS URLs."
